@@ -11,16 +11,38 @@ export default function HomePage() {
     message: "",
     employees: "",
   });
+  const [status, setStatus] = useState({ state: "idle", message: "" });
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setContact((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const body = `Full Name: ${contact.fullName}\nCompany Name: ${contact.companyName}\nEmail ID: ${contact.email}\nSubject: ${contact.subject}\nNumber of Employees: ${contact.employees}\n\nMessage:\n${contact.message}`;
-    window.location.href = `mailto:care@lalinx.com?subject=${encodeURIComponent(contact.subject || "Contact Request")}&body=${encodeURIComponent(body)}`;
+    setStatus({ state: "sending", message: "" });
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contact),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || "Failed to send");
+      }
+      setStatus({ state: "sent", message: "Message sent. We'll be in touch." });
+      setContact({
+        fullName: "",
+        companyName: "",
+        email: "",
+        subject: "",
+        message: "",
+        employees: "",
+      });
+    } catch (err) {
+      setStatus({ state: "error", message: err.message });
+    }
   };
 
   return (
@@ -47,7 +69,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-4">
             <button className="hidden md:block text-sm font-bold text-slate-600 hover:text-indigo-600">Login</button>
-            <a href="#contact" className="bg-indigo-600 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Book a Demo</a>
+            <a href="/book-demo" className="bg-indigo-600 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Book a Demo</a>
             <a href="#contact" className="bg-slate-900 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">Contact Us</a>
           </div>
         </div>
@@ -703,12 +725,24 @@ export default function HomePage() {
                   className="w-full rounded-3xl border border-slate-200 px-4 py-4 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none"
                 />
               </label>
-              <button
-                type="submit"
-                className="w-full md:w-auto px-8 py-4 bg-indigo-600 text-white rounded-3xl font-bold hover:bg-indigo-700 transition-all"
-              >
-                Send Message
-              </button>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <button
+                  type="submit"
+                  disabled={status.state === "sending"}
+                  className="w-full md:w-auto px-8 py-4 bg-indigo-600 text-white rounded-3xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-60"
+                >
+                  {status.state === "sending" ? "Sending…" : "Send Message"}
+                </button>
+                {status.message && (
+                  <span
+                    className={`text-sm font-semibold ${
+                      status.state === "error" ? "text-red-600" : "text-emerald-600"
+                    }`}
+                  >
+                    {status.message}
+                  </span>
+                )}
+              </div>
             </form>
           </div>
         </div>
